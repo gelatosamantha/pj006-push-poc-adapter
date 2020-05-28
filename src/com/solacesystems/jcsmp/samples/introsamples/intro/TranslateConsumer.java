@@ -6,13 +6,8 @@ import com.solacesystems.jcsmp.JCSMPFactory;
 import com.solacesystems.jcsmp.SDTException;
 import com.solacesystems.jcsmp.SDTMap;
 import com.solacesystems.jcsmp.TextMessage;
-import com.solacesystems.jcsmp.XMLContentMessage;
 import com.solacesystems.jcsmp.XMLMessageListener;
 import com.solacesystems.jcsmp.XMLMessageProducer;
-// import com.solacesystems.jcsmp.XMLMessage;
-import com.solacesystems.jcsmp.StreamMessage;
-import com.solacesystems.jcsmp.MapMessage;
-
 
 public class TranslateConsumer implements XMLMessageListener {
 	XMLMessageProducer prod;
@@ -30,42 +25,15 @@ public class TranslateConsumer implements XMLMessageListener {
 
 	@Override
 	public void onReceive(BytesXMLMessage arg0) {
-        Class targetClass ;
-        BytesXMLMessage outMsg = null;
-
-
-        if (arg0 instanceof XMLContentMessage) {
-        	targetClass = XMLContentMessage.class;
-        	outMsg = JCSMPFactory.onlyInstance().createMessage(XMLContentMessage.class);
-
+        if (arg0 instanceof BytesMessage) {
             System.out.printf("BytesMessage received: '%s'%n",
-                    ((XMLContentMessage)arg0).dump()+ " " + arg0.getClass().toString());
-        }else if (arg0 instanceof BytesMessage) {
-        	targetClass = BytesMessage.class;
-        	outMsg = JCSMPFactory.onlyInstance().createMessage(BytesMessage.class);
-
-            // System.out.println("Message received => " + arg0.getClass().toString() +  " == " + arg0.dump());
-        }else if (arg0 instanceof MapMessage) {
-        	targetClass = MapMessage.class;
-        	outMsg = JCSMPFactory.onlyInstance().createMessage(MapMessage.class);        	
-        }else if (arg0 instanceof StreamMessage) {
-        	targetClass = StreamMessage.class;
-        	outMsg = JCSMPFactory.onlyInstance().createMessage(StreamMessage.class);        	
-        }else if (arg0 instanceof TextMessage) {
-        	targetClass = TextMessage.class;
-        	outMsg = JCSMPFactory.onlyInstance().createMessage(TextMessage.class);
-        }else if (arg0 instanceof XMLContentMessage) {
-        	targetClass = XMLContentMessage.class;
-        	outMsg = JCSMPFactory.onlyInstance().createMessage(XMLContentMessage.class);
+                    ((BytesMessage)arg0).dump());
+        } else {
+            System.out.println("Message received.");
         }
-            System.out.println("Message received => " + arg0.getClass().toString() +  " == " + arg0.dump());
-
-
-
-        // XMLContentMessage outMsg = JCSMPFactory.onlyInstance().createMessage(XMLContentMessage.class);
-        // BytesXMLMessage outMsg = JCSMPFactory.onlyInstance().createMessage(targetClass);
+        BytesMessage outMsg = JCSMPFactory.onlyInstance().createMessage(BytesMessage.class);
         outMsg.setProperties(arg0.getProperties());
-        String empty = "{}";
+        String empty = "{\"delete\": true}";
 		// Translate message and publish
 		SDTMap msgMap = arg0.getProperties();
 		try {
@@ -73,19 +41,14 @@ public class TranslateConsumer implements XMLMessageListener {
 			String topicName = msgMap.get("topicName").toString();
 			// Send out message
 			if (action.equalsIgnoreCase("create")) {
-				outMsg.writeBytes(((XMLContentMessage)arg0).getBytes());
-				// ((TextMessage)outMsg).setText(((TextMessage)arg0).getText());
-				// outMsg.writeBytes(empty.getBytes());
-            // System.out.println("Out Msg => " + outMsg.getClass().toString() +  " == " + outMsg.dump());
-
+				outMsg.setData(((BytesMessage)arg0).getData());
 				prod.send(outMsg, JCSMPFactory.onlyInstance().createTopic(topicName));
 			} else if (action.equalsIgnoreCase("update")) {
-				outMsg.writeBytes(((XMLContentMessage)arg0).getBytes());
-				// ((TextMessage)outMsg).setText(((TextMessage)arg0).getText());
+				outMsg.setData(((BytesMessage)arg0).getData());
 				prod.send(outMsg, JCSMPFactory.onlyInstance().createTopic(topicName));
 			} else if (action.equalsIgnoreCase("delete")) {
-				outMsg.writeBytes(empty.getBytes());
-				// ((TextMessage)outMsg).setText(empty);
+				
+				outMsg.setData(empty.getBytes());
 				prod.send(outMsg, JCSMPFactory.onlyInstance().createTopic(topicName));
 			}
 			arg0.ackMessage();
